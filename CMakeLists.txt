@@ -11,7 +11,9 @@ message(STATUS "Compiler ID: ${CMAKE_C_COMPILER_ID}")
 set(ASAN True)
 
 if(MSVC)
-    add_compile_options(/guard:cf /analyze /permissive- /W4 /WX)
+    # let MSVC be more permissive to allow the bad code to compile
+    # add_compile_options(/guard:cf /analyze /permissive- /W4 /WX)
+    add_compile_options()
 else()
     add_compile_options(-Wall -Wextra -pedantic -Werror)
 endif()
