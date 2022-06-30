@@ -4,7 +4,7 @@ Memory leak test using [LeakSanitizer](https://clang.llvm.org/docs/LeakSanitizer
 Added leak suppression for `realizeClassWithoutSwift` on macOS.
 
 ```
-$ cat memory-leak.c
+% cat memory-leak.c
 #include <stdlib.h>
 void *p;
 int main() {
