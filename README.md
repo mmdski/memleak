@@ -1,9 +1,10 @@
 # memleak
+
+CMake files are configured for Homebrew LLVM on macOS.
+
 Memory leak test using [LeakSanitizer](https://clang.llvm.org/docs/LeakSanitizer.html)
 
-Added leak suppression for `realizeClassWithoutSwift` on macOS.
-
-```
+```zsh
 % cat memory-leak.c
 #include <stdlib.h>
 void *p;
@@ -30,4 +31,23 @@ Suppressions used:
 -----------------------------------------------------
 
 SUMMARY: AddressSanitizer: 7 byte(s) leaked in 1 allocation(s).
+```
+
+Undefined behavior test using [UndefinedBehaviorSanitizer](https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html).
+
+```zsh
+% cat ub-test.c
+int main(int argc, char **argv)
+{
+    int k = 0x7fffffff;
+    k += argc;
+    return 0;
+}
+% clang -fsanitize=undefined -g -fno-omit-frame-pointer ub-test.c ; UBSAN_OPTIONS=print_stacktrace=1 ./a.out
+ub-test.c:4:7: runtime error: signed integer overflow: 2147483647 + 1 cannot be represented in type 'int'
+    #0 0x10082ff70 in main ub-test.c:4
+    #1 0x100b99088 in start+0x204 (dyld:arm64+0x5088) (BuildId: 75627683a78032adae34cf86dd23a26b32000000200000000100000000050c00)
+    #2 0xdc107ffffffffffc  (<unknown module>)
+
+SUMMARY: UndefinedBehaviorSanitizer: undefined-behavior ub-test.c:4:7 in
 ```
