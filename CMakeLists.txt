@@ -8,17 +8,70 @@ set(CMAKE_C_STANDARD_REQUIRED True)
 message(STATUS "System name: ${CMAKE_SYSTEM_NAME}")
 message(STATUS "Compiler ID: ${CMAKE_C_COMPILER_ID}")
 
-add_compile_options(-Wall -Wextra -pedantic -Werror -g
-    -fno-omit-frame-pointer
-    -fsanitize=address,undefined
-    -fno-sanitize-recover=all)
-add_link_options(-fsanitize=address)
+# determine if ASAN is available
+try_compile(ASAN_AVAILABLE "${CMAKE_BINARY_DIR}"
+    SOURCES "${CMAKE_SOURCE_DIR}/no-leak.c"
+    CMAKE_FLAGS "-fsanitize=address"
+    LINK_OPTIONS "-fsanitize=address"
+    COPY_FILE "${CMAKE_BINARY_DIR}/lsan-check/no-leak")
+message(STATUS "ASAN available: ${ASAN_AVAILABLE}")
 
-set(ASAN_OPTIONS "ASAN_OPTIONS=detect_leaks=1:abort_on_error=0")
-set(UBSAN_OPTIONS "UBSAN_OPTIONS=print_stacktrace=1")
-set(LSAN_OPTIONS "LSAN_OPTIONS=suppressions=${CMAKE_SOURCE_DIR}/lsan.supp")
+# determine if LSAN is available with ASAN
+set(LSAN_AVAILABLE FALSE)
 
-set(TEST_ENV "${ASAN_OPTIONS};${UBSAN_OPTIONS};${LSAN_OPTIONS}")
+if(ASAN_AVAILABLE)
+    file(COPY_FILE "${CMAKE_SOURCE_DIR}/lsan-check.sh" "${CMAKE_BINARY_DIR}/lsan-check/lsan-check.sh")
+    set(ENV{SOURCE_DIR} ${CMAKE_SOURCE_DIR})
+
+    execute_process(COMMAND
+        "${CMAKE_BINARY_DIR}/lsan-check/lsan-check.sh"
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/lsan-check"
+        RESULT_VARIABLE LSAN_CHECK_RESULT
+        OUTPUT_QUIET ERROR_QUIET)
+
+    if(LSAN_CHECK_RESULT STREQUAL "0")
+        set(LSAN_AVAILABLE TRUE)
+    endif()
+endif()
+
+message(STATUS "ASAN/LSAN available: ${LSAN_AVAILABLE}")
+
+# determine if UBSAN is available
+try_compile(UBSAN_AVAILABLE "${CMAKE_BINARY_DIR}"
+    SOURCES "${CMAKE_SOURCE_DIR}/no-leak.c"
+    CMAKE_FLAGS "-fsanitize=undefined"
+    LINK_OPTIONS "-fsanitize=undefined")
+message(STATUS "UBSAN available: ${UBSAN_AVAILABLE}")
+
+# -fno-sanitize-recover=all is necessary for UBSAN test failure
+add_compile_options(-Wall -Wextra -pedantic -Werror -fno-sanitize-recover=all)
+
+if(ASAN_AVAILABLE)
+    add_compile_options(-fsanitize=address)
+    add_link_options(-fsanitize=address)
+endif()
+
+if(UBSAN_AVAILABLE)
+    add_compile_options(-fsanitize=undefined)
+    add_link_options(-fsanitize=undefined)
+endif()
+
+# add test environment variables
+set(TEST_ENV "")
+
+if(ASAN_AVAILABLE)
+    if(LSAN_AVAILABLE)
+        set(ASAN_OPTIONS "ASAN_OPTIONS=detect_leaks=1:abort_on_error=0")
+        set(LSAN_OPTIONS "LSAN_OPTIONS=suppressions=${CMAKE_SOURCE_DIR}/lsan.supp")
+        string(CONCAT TEST_ENV "${TEST_ENV}" "${ASAN_OPTIONS};${LSAN_OPTIONS}")
+    else()
+        string(CONCAT TEST_ENV "${TEST_ENV}" "ASAN_OPTIONS=abort_on_error=0")
+    endif()
+endif()
+
+if(UBSAN_AVAILABLE)
+    string(CONCAT TEST_ENV "${TEST_ENV};" "UBSAN_OPTIONS=print_stacktrace=1")
+endif()
 
 macro(add_memleak_test basename)
     add_executable(${basename} ${basename}.c)
@@ -36,14 +89,14 @@ set_tests_properties(access-after-free PROPERTIES WILL_FAIL TRUE)
 add_memleak_test(double-free)
 set_tests_properties(double-free PROPERTIES WILL_FAIL TRUE)
 
+# this should fail if LSAN is used
+add_memleak_test(memory-leak)
+set_tests_properties(memory-leak PROPERTIES WILL_FAIL TRUE)
+
 # this should fail if UBSAN is used
 # adding -fno-sanitize-recover=all is necessary
 add_memleak_test(ub-test)
 set_tests_properties(ub-test PROPERTIES WILL_FAIL TRUE)
-
-# this should fail if LSAN is used
-add_memleak_test(memory-leak)
-set_tests_properties(memory-leak PROPERTIES WILL_FAIL TRUE)
 
 # this should not fail
 add_memleak_test(no-leak)
