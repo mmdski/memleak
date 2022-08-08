@@ -8,15 +8,15 @@ set(CMAKE_C_STANDARD_REQUIRED True)
 message(STATUS "System name: ${CMAKE_SYSTEM_NAME}")
 message(STATUS "Compiler ID: ${CMAKE_C_COMPILER_ID}")
 
-# determine if ASAN is available
+# determine if ASan is available
 try_compile(ASAN_AVAILABLE "${CMAKE_BINARY_DIR}"
     SOURCES "${CMAKE_SOURCE_DIR}/no-leak.c"
     CMAKE_FLAGS "-fsanitize=address"
     LINK_OPTIONS "-fsanitize=address"
     COPY_FILE "${CMAKE_BINARY_DIR}/lsan-check/no-leak")
-message(STATUS "ASAN available: ${ASAN_AVAILABLE}")
+message(STATUS "ASan available: ${ASAN_AVAILABLE}")
 
-# determine if LSAN is available with ASAN
+# determine if LSan is available with ASan
 set(LSAN_AVAILABLE FALSE)
 
 if(ASAN_AVAILABLE)
@@ -34,14 +34,21 @@ if(ASAN_AVAILABLE)
     endif()
 endif()
 
-message(STATUS "ASAN/LSAN available: ${LSAN_AVAILABLE}")
+message(STATUS "ASan+LSan available: ${LSAN_AVAILABLE}")
 
-# determine if UBSAN is available
+# determine if UBSan is available
 try_compile(UBSAN_AVAILABLE "${CMAKE_BINARY_DIR}"
     SOURCES "${CMAKE_SOURCE_DIR}/no-leak.c"
     CMAKE_FLAGS "-fsanitize=undefined"
     LINK_OPTIONS "-fsanitize=undefined")
-message(STATUS "UBSAN available: ${UBSAN_AVAILABLE}")
+message(STATUS "UBSan available: ${UBSAN_AVAILABLE}")
+
+# determine if MSan is available
+try_compile(MSAN_AVAILABLE "${CMAKE_BINARY_DIR}"
+    SOURCES "${CMAKE_SOURCE_DIR}/no-leak.c"
+    CMAKE_FLAGS "-fsanitize=memory"
+    LINK_OPTIONS "-fsanitize=memory")
+message(STATUS "MSan available: ${MSAN_AVAILABLE}")
 
 # -fno-sanitize-recover=all is necessary for UBSAN test failure
 add_compile_options(-Wall -Wextra -pedantic -Werror -fno-sanitize-recover=all)
@@ -82,18 +89,18 @@ endmacro()
 enable_testing()
 include(CTest)
 
-# these should fail if ASAN is used
+# these should fail if ASan is used
 add_memleak_test(access-after-free)
 set_tests_properties(access-after-free PROPERTIES WILL_FAIL TRUE)
 
 add_memleak_test(double-free)
 set_tests_properties(double-free PROPERTIES WILL_FAIL TRUE)
 
-# this should fail if LSAN is used
+# this should fail if LSan is used
 add_memleak_test(memory-leak)
 set_tests_properties(memory-leak PROPERTIES WILL_FAIL TRUE)
 
-# this should fail if UBSAN is used
+# this should fail if UBSan is used
 # adding -fno-sanitize-recover=all is necessary
 add_memleak_test(ub-test)
 set_tests_properties(ub-test PROPERTIES WILL_FAIL TRUE)
