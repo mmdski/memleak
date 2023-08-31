@@ -1,11 +1,12 @@
-int main(int argc, char **argv)
+int
+main (int argc, char **argv)
 {
-    int k = 0x7fffffff;
-    k += argc;
+  int k = 0x7fffffff;
+  k += argc;
 
-    // suppress unused parameter errors
-    (void)k;
-    (void)argv;
+  // suppress unused parameter errors
+  (void) k;
+  (void) argv;
 
-    return 0;
+  return 0;
 }

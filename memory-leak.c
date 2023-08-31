@@ -1,8 +1,9 @@
 #include <stdlib.h>
 void *p;
-int main()
+int
+main (void)
 {
-    p = malloc(7);
-    p = 0; // The memory is leaked here.
-    return 0;
+  p = malloc (7);
+  p = 0; // The memory is leaked here.
+  return 0;
 }

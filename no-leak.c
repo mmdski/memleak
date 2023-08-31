@@ -1,8 +1,9 @@
 #include <stdlib.h>
 void *p;
-int main()
+int
+main (void)
 {
-    p = malloc(7);
-    free(p);
-    return 0;
+  p = malloc (7);
+  free (p);
+  return 0;
 }
